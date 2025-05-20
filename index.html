@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Store Rating App</title>
+  <style>
+    /* Reset */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+    }
+
+    /* Container */
+    #root {
+      width: 100%;
+      max-width: 900px;
+      background: white;
+      padding: 25px 30px;
+      border-radius: 8px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5 {
+      margin: 0 0 15px 0;
+      font-weight: 600;
+    }
+
+    button {
+      cursor: pointer;
+      background-color: #1174f4;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      padding: 10px 16px;
+      font-weight: 600;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: #0a58ca;
+    }
+
+    button:disabled {
+      background-color: #a5c4ff;
+      cursor: not-allowed;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 9px 12px;
+      margin-bottom: 14px;
+      border: 1.6px solid #ccc;
+      border-radius: 5px;
+      font-size: 15px;
+      transition: border-color 0.3s ease;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: #1174f4;
+      outline: none;
+    }
+
+    label {
+      font-weight: 600;
+      margin-bottom: 5px;
+      display: inline-block;
+    }
+
+    nav {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    nav button {
+      background-color: transparent;
+      color: #1174f4;
+      font-weight: 600;
+      border: 2px solid #1174f4;
+    }
+
+    nav button:hover {
+      background-color: #1174f4;
+      color: white;
+    }
+
+    .error {
+      color: #f23e3e;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    .success {
+      color: green;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+
+    .info-box {
+      margin-bottom: 20px;
+      padding: 12px;
+      background: #e9f0ff;
+      border-radius: 5px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .tab-buttons {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .tab-buttons button {
+      flex: 1;
+      padding: 8px;
+      font-weight: 600;
+      border-radius: 5px;
+      background-color: #dbe4ff;
+      color: #333;
+    }
+
+    .tab-buttons button.active {
+      background-color: #1174f4;
+      color: white;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    thead th {
+      background-color: #1174f4;
+      color: white;
+      padding: 10px;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+
+    thead th .sort-arrow {
+      margin-left: 6px;
+      font-size: 11px;
+      display: inline-block;
+    }
+
+    tbody td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      vertical-align: middle;
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    .rating-stars {
+      color: #f39c12;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .rating-stars.readonly {
+      cursor: default;
+    }
+
+    .rating-stars > span {
+      padding: 0 2px;
+      transition: color 0.2s ease;
+    }
+
+    .rating-stars > span:hover,
+    .rating-stars > span.hovered,
+    .rating-stars > span.selected {
+      color: #e67e22;
+    }
+
+    .button-small {
+      font-size: 13px;
+      padding: 6px 9px;
+      border-radius: 4px;
+      background-color: #1890ff;
+    }
+
+    .button-small:hover {
+      background-color: #1073e6;
+    }
+
+
+    .search-filter-container {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    .search-filter-container > * {
+      flex: 1 1 150px;
+      min-width: 150px;
+    }
+
+    .section {
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <!-- React and Babel CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+  <script type="text/babel">
+
+    const { useState, useEffect, useRef } = React;
+
+    // API base URL - change if your backend runs on different host or port
+    const API_BASE = 'http://localhost:5000/api';
+
+    // Utility for JWT token management
+    const AuthService = {
+      getToken: () => localStorage.getItem('token'),
+      setToken: (token) => localStorage.setItem('token', token),
+      clearToken: () => localStorage.removeItem('token'),
+      getRole: () => localStorage.getItem('role'),
+      setRole: (role) => localStorage.setItem('role', role),
+      getName: () => localStorage.getItem('name'),
+      setName: (name) => localStorage.setItem('name', name),
+      isLoggedIn: () => !!localStorage.getItem('token'),
+      logout: () => {
+        AuthService.clearToken();
+        localStorage.removeItem('role');
+        localStorage.removeItem('name');
+      }
+    };
+
+    function App() {
+      const [page, setPage] = useState('login'); // login, register, dashboard
+      const [role, setRole] = useState(AuthService.getRole() ?? null);
+      const [name, setName] = useState(AuthService.getName() ?? '');
+
+      // Redirect if logged in
+      useEffect(() => {
+        if (AuthService.isLoggedIn()) {
+          setPage('dashboard');
+          setRole(AuthService.getRole());
+          setName(AuthService.getName());
+        }
+      }, []);
+
+      // Logout handler
+      const handleLogout = () => {
+        AuthService.logout();
+        setRole(null);
+        setName('');
+        setPage('login');
+      };
+
+      // Render navigation
+      const Nav = () => (
+        <nav>
+          {AuthService.isLoggedIn() ? (
+            <>
+              <span style={{ marginRight: 12, fontWeight: "bold" }}>Hi, {name} ({role})</span>
+              <button onClick={handleLogout}>Logout</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setPage('login')} disabled={page === 'login'}>Login</button>
+              <button onClick={() => setPage('register')} disabled={page === 'register'}>Register</button>
+            </>
+          )}
+        </nav>
+      );
+
+      return (
+        <div>
+          <h1>Store Ratings Platform</h1>
+          <Nav />
+          {page === 'login' && (
+            <Login
+              onLogin={(token, r, n) => {
+                AuthService.setToken(token);
+                AuthService.setRole(r);
+                AuthService.setName(n);
+                setRole(r);
+                setName(n);
+                setPage('dashboard');
+              }}
+            />
+          )}
+          {page === 'register' && <Register onRegister={() => setPage('login')} />}
+          {page === 'dashboard' && role && (
+            <Dashboard role={role} name={name} />
+          )}
+        </div>
+      );
+    }
+
+    // Login Component
+    function Login({ onLogin }) {
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState(null);
+      const [loading, setLoading] = useState(false);
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setError(null);
+        if (!email || !password) {
+          setError('Please fill in email and password');
+          return;
+        }
+        setLoading(true);
+        try {
+          const res = await fetch(`${API_BASE}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setError(data.message || 'Login failed');
+          } else {
+            onLogin(data.token, data.role, data.name);
+          }
+        } catch (ex) {
+          setError('Network error');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <form onSubmit={submit}>
+          <h2>Login</h2>
+          {error && <div className="error">{error}</div>}
+          <label>Email</label>
+          <input
+            type="email" value={email} onChange={e => setEmail(e.target.value.toLowerCase())} autoComplete="username"
+            required
+          />
+          <label>Password</label>
+          <input
+            type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password"
+            required
+          />
+          <button disabled={loading}>{loading ? 'Logging in...' : 'Login'}</button>
+        </form>
+      );
+    }
+
+    // Registration Component for Normal Users
+    function Register({ onRegister }) {
+      const [name, setName] = useState('');
+      const [email, setEmail] = useState('');
+      const [address, setAddress] = useState('');
+      const [password, setPassword] = useState('');
+      const [confirmPwd, setConfirmPwd] = useState('');
+      const [error, setError] = useState(null);
+      const [success, setSuccess] = useState(null);
+      const [loading, setLoading] = useState(false);
+
+      // Validation constants
+      const minNameLength = 20;
+      const maxNameLength = 60;
+      const maxAddressLength = 400;
+      const pwdRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,16}$/;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setError(null);
+        setSuccess(null);
+
+        if (name.length < minNameLength || name.length > maxNameLength) {
+          setError(`Name must be between ${minNameLength} and ${maxNameLength} characters.`);
+          return;
+        }
+        if (address.length > maxAddressLength) {
+          setError('Address must not exceed 400 characters.');
+          return;
+        }
+        if (!emailRegex.test(email)) {
+          setError('Invalid email format.');
+          return;
+        }
+        if (!pwdRegex.test(password)) {
+          setError('Password must be 8-16 chars, include 1 uppercase letter and 1 special char.');
+          return;
+        }
+        if (password !== confirmPwd) {
+          setError('Passwords do not match.');
+          return;
+        }
+        setLoading(true);
+
+        try {
+          const res = await fetch(`${API_BASE}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, address, password })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setError(data.message || 'Registration failed.');
+          } else {
+            setSuccess('Registration successful! You can now login.');
+            setName('');
+            setEmail('');
+            setAddress('');
+            setPassword('');
+            setConfirmPwd('');
+            if (onRegister) onRegister();
+          }
+        } catch (ex) {
+          setError('Network error');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <form onSubmit={submit}>
+          <h2>Register - Normal User</h2>
+          {error && <div className="error">{error}</div>}
+          {success && <div className="success">{success}</div>}
+          <label>Name</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} required />
+          <label>Email</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value.toLowerCase())} required />
+          <label>Address</label>
+          <textarea value={address} rows={3} onChange={e => setAddress(e.target.value)} maxLength="400" />
+          <label>Password</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+          <label>Confirm Password</label>
+          <input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} required />
+          <button disabled={loading}>{loading ? 'Registering...' : 'Register'}</button>
+        </form>
+      );
+    }
+
+    // Dashboard component - renders based on role
+    function Dashboard({ role, name }) {
+      if (role === 'admin') return <AdminDashboard />;
+      if (role === 'normal') return <NormalUserDashboard />;
+      if (role === 'store_owner') return <StoreOwnerDashboard />;
+      return <div>Unknown role: {role}</div>;
+    }
+
+    // --- Admin Dashboard ---
+    function AdminDashboard() {
+      const [stats, setStats] = useState({ total_users: 0, total_stores: 0, total_ratings: 0 });
+      const [tab, setTab] = useState('dashboard'); // dashboard, users, stores, addUserForm, addStoreForm
+      const [users, setUsers] = useState([]);
+      const [stores, setStores] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+
+      // Filters state for users and stores
+      const [userFilters, setUserFilters] = useState({ name: '', email: '', address: '', role: '' });
+      const [userSort, setUserSort] = useState({ sortBy: 'name', sortDir: 'ASC' });
+      const [storeFilters, setStoreFilters] = useState({ name: '', email: '', address: '' });
+      const [storeSort, setStoreSort] = useState({ sortBy: 'name', sortDir: 'ASC' });
+
+      // Add User Form State
+      const [formUser, setFormUser] = useState({ name: '', email: '', password: '', address: '', role: 'normal' });
+      const [userFormError, setUserFormError] = useState(null);
+      const [userFormSuccess, setUserFormSuccess] = useState(null);
+      const [userFormLoading, setUserFormLoading] = useState(false);
+
+      // Add Store Form State
+      const [formStore, setFormStore] = useState({ name: '', email: '', address: '', owner_id: '' });
+      const [storeFormError, setStoreFormError] = useState(null);
+      const [storeFormSuccess, setStoreFormSuccess] = useState(null);
+      const [storeFormLoading, setStoreFormLoading] = useState(false);
+
+      // Fetch dashboard stats
+      useEffect(() => {
+        if (tab === 'dashboard') {
+          setLoading(true);
+          fetchWithAuth(`${API_BASE}/admin/dashboard`)
+            .then(data => setStats(data))
+            .catch(e => setError('Failed to load dashboard info'))
+            .finally(() => setLoading(false));
+        }
+      }, [tab]);
+
+      // Fetch users
+      useEffect(() => {
+        if (tab === 'users') {
+          setLoading(true);
+          const params = new URLSearchParams({
+            ...userFilters,
+            sortBy: userSort.sortBy,
+            sortDir: userSort.sortDir,
+          });
+          fetchWithAuth(`${API_BASE}/admin/users?${params.toString()}`)
+            .then(data => setUsers(data))
+            .catch(e => setError('Failed to load users'))
+            .finally(() => setLoading(false));
+        }
+      }, [tab, userFilters, userSort]);
+
+      // Fetch stores
+      useEffect(() => {
+        if (tab === 'stores') {
+          setLoading(true);
+          const params = new URLSearchParams({ ...storeFilters, sortBy: storeSort.sortBy, sortDir: storeSort.sortDir });
+          fetchWithAuth(`${API_BASE}/admin/stores?${params.toString()}`)
+            .then(data => setStores(data))
+            .catch(e => setError('Failed to load stores'))
+            .finally(() => setLoading(false));
+        }
+      }, [tab, storeFilters, storeSort]);
+
+      // Helper for fetching with auth token and JSON parsing
+      const fetchWithAuth = (url, options = {}) => {
+        const headers = { 'Authorization': 'Bearer ' + AuthService.getToken(), 'Content-Type': 'application/json' };
+        return fetch(url, { ...options, headers })
+          .then(async res => {
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.message || 'Fetch error');
+            }
+            return res.json();
+          });
+      };
+
+      // Handle sorting column clicks
+      const handleSortChange = (field, currentSort, setSort) => {
+        if (currentSort.sortBy === field) {
+          // toggle direction
+          setSort({ sortBy: field, sortDir: currentSort.sortDir === 'ASC' ? 'DESC' : 'ASC' });
+        } else {
+          setSort({ sortBy: field, sortDir: 'ASC' });
+        }
+      };
+
+      // Add user submission
+      const submitAddUser = async (e) => {
+        e.preventDefault();
+        setUserFormError(null);
+        setUserFormSuccess(null);
+
+        const { name, email, password, address, role } = formUser;
+        // Basic validations (frontend)
+        if (!name || name.length < 20 || name.length > 60) {
+          setUserFormError('Name must be 20 to 60 characters');
+          return;
+        }
+        if (!email) {
+          setUserFormError('Email is required');
+          return;
+        }
+        if (!password || password.length < 8) {
+          setUserFormError('Password must be 8-16 chars, incl. uppercase and special char');
+          return;
+        }
+        setUserFormLoading(true);
+        try {
+          await fetchWithAuth(`${API_BASE}/admin/users`, {
+            method: 'POST',
+            body: JSON.stringify({ name, email, password, address, role })
+          });
+          setUserFormSuccess('User added successfully');
+          setFormUser({ name: '', email: '', password: '', address: '', role: 'normal' });
+        } catch (ex) {
+          setUserFormError(ex.message);
+        } finally {
+          setUserFormLoading(false);
+        }
+      };
+
+      // Add store submission
+      const submitAddStore = async (e) => {
+        e.preventDefault();
+        setStoreFormError(null);
+        setStoreFormSuccess(null);
+
+        const { name, email, address, owner_id } = formStore;
+        if (!name || !email) {
+          setStoreFormError('Name and Email required');
+          return;
+        }
+        setStoreFormLoading(true);
+        try {
+          await fetchWithAuth(`${API_BASE}/admin/stores`, {
+            method: 'POST',
+            body: JSON.stringify({ name, email, address, owner_id: owner_id ? parseInt(owner_id) : null })
+          });
+          setStoreFormSuccess('Store added successfully');
+          setFormStore({ name: '', email: '', address: '', owner_id: '' });
+        } catch (ex) {
+          setStoreFormError(ex.message);
+        } finally {
+          setStoreFormLoading(false);
+        }
+      };
+
+      return (
+        <div>
+          <h2>Admin Dashboard</h2>
+          <div className="tab-buttons">
+            <button onClick={() => setTab('dashboard')} className={tab === 'dashboard' ? 'active' : ''}>Dashboard</button>
+            <button onClick={() => setTab('users')} className={tab === 'users' ? 'active' : ''}>Users</button>
+            <button onClick={() => setTab('stores')} className={tab === 'stores' ? 'active' : ''}>Stores</button>
+            <button onClick={() => setTab('addUserForm')} className={tab === 'addUserForm' ? 'active' : ''}>Add User</button>
+            <button onClick={() => setTab('addStoreForm')} className={tab === 'addStoreForm' ? 'active' : ''}>Add Store</button>
+          </div>
+
+          {error && <div className="error">{error}</div>}
+
+          {tab === 'dashboard' && (
+            <div>
+              {loading ? <p>Loading...</p> : (
+                <div className="info-box">
+                  <p><strong>Total Users:</strong> {stats.total_users}</p>
+                  <p><strong>Total Stores:</strong> {stats.total_stores}</p>
+                  <p><strong>Total Ratings Submitted:</strong> {stats.total_ratings}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'users' && (
+            <div>
+              <FiltersForm
+                filters={userFilters}
+                setFilters={setUserFilters}
+                roles={['', 'admin', 'normal', 'store_owner']}
+              />
+              {loading ? <p>Loading users...</p> : (
+                <Table
+                  columns={['name', 'email', 'address', 'role']}
+                  data={users}
+                  sort={userSort}
+                  onSortChange={(field) => handleSortChange(field, userSort, setUserSort)}
+                />
+              )}
+            </div>
+          )}
+
+          {tab === 'stores' && (
+            <div>
+              <FiltersForm
+                filters={storeFilters}
+                setFilters={setStoreFilters}
+                roles={null}
+                isStore
+              />
+              {loading ? <p>Loading stores...</p> : (
+                <Table
+                  columns={['name', 'email', 'address', 'rating']}
+                  data={stores}
+                  sort={storeSort}
+                  onSortChange={(field) => handleSortChange(field, storeSort, setStoreSort)}
+                />
+              )}
+            </div>
+          )}
+
+          {tab === 'addUserForm' && (
+            <form onSubmit={submitAddUser}>
+              <h3>Add New User</h3>
+              {userFormError && <div className="error">{userFormError}</div>}
+              {userFormSuccess && <div className="success">{userFormSuccess}</div>}
+              <label>Name</label>
+              <input type="text" value={formUser.name} onChange={e => setFormUser({ ...formUser, name: e.target.value })} required />
+              <label>Email</label>
+              <input type="email" value={formUser.email} onChange={e => setFormUser({ ...formUser, email: e.target.value.toLowerCase() })} required />
+              <label>Password</label>
+              <input type="password" value={formUser.password} onChange={e => setFormUser({ ...formUser, password: e.target.value })} required />
+              <label>Address</label>
+              <textarea value={formUser.address} rows={3} onChange={e => setFormUser({ ...formUser, address: e.target.value })} />
+              <label>Role</label>
+              <select value={formUser.role} onChange={e => setFormUser({ ...formUser, role: e.target.value })}>
+                <option value="normal">Normal User</option>
+                <option value="admin">System Administrator</option>
+                <option value="store_owner">Store Owner</option>
+              </select>
+              <button disabled={userFormLoading}>{userFormLoading ? 'Adding user...' : 'Add User'}</button>
+            </form>
+          )}
+
+          {tab === 'addStoreForm' && (
+            <AddStoreForm formStore={formStore} setFormStore={setFormStore} storeFormError={storeFormError} storeFormSuccess={storeFormSuccess}
+              storeFormLoading={storeFormLoading} submitAddStore={submitAddStore} />
+          )}
+        </div>
+      );
+    }
+
+    // Filters Form Component for Admin users and stores
+    function FiltersForm({ filters, setFilters, roles, isStore }) {
+
+      return (
+        <div className="search-filter-container">
+          <input
+            type="text"
+            placeholder="Name filter"
+            value={filters.name}
+            onChange={e => setFilters(f => ({ ...f, name: e.target.value }))}
+          />
+          {!isStore && (
+            <>
+              <input
+                type="text"
+                placeholder="Email filter"
+                value={filters.email}
+                onChange={e => setFilters(f => ({ ...f, email: e.target.value }))}
+              />
+              <input
+                type="text"
+                placeholder="Address filter"
+                value={filters.address}
+                onChange={e => setFilters(f => ({ ...f, address: e.target.value }))}
+              />
+              {roles && (
+                <select value={filters.role || ''} onChange={e => setFilters(f => ({ ...f, role: e.target.value }))}>
+                  <option value="">All Roles</option>
+                  {roles.filter(r => r !== '').map(role => <option key={role} value={role}>{role}</option>)}
+                </select>
+              )}
+            </>
+          )}
+          {isStore && (
+            <>
+              <input
+                type="text"
+                placeholder="Email filter"
+                value={filters.email || ''}
+                onChange={e => setFilters(f => ({ ...f, email: e.target.value }))}
+              />
+              <input
+                type="text"
+                placeholder="Address filter"
+                value={filters.address || ''}
+                onChange={e => setFilters(f => ({ ...f, address: e.target.value }))}
+              />
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // Add Store Form component used by Admin Dashboard
+    function AddStoreForm({ formStore, setFormStore, storeFormError, storeFormSuccess, storeFormLoading, submitAddStore }) {
+      const [owners, setOwners] = useState([]);
+      useEffect(() => {
+        // Fetch Store Owners for dropdown
+        fetchWithAuth(`${API_BASE}/admin/users?role=store_owner`)
+          .then(setOwners)
+          .catch(() => setOwners([]));
+      }, []);
+
+      function fetchWithAuth(url) {
+        const headers = { 'Authorization': 'Bearer ' + AuthService.getToken(), 'Content-Type': 'application/json' };
+        return fetch(url, { headers })
+          .then(async res => {
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.message || 'Fetch error');
+            }
+            return res.json();
+          });
+      }
+
+      return (
+        <form onSubmit={submitAddStore}>
+          <h3>Add New Store</h3>
+          {storeFormError && <div className="error">{storeFormError}</div>}
+          {storeFormSuccess && <div className="success">{storeFormSuccess}</div>}
+          <label>Name</label>
+          <input type="text" value={formStore.name} onChange={e => setFormStore({ ...formStore, name: e.target.value })} required />
+          <label>Email</label>
+          <input type="email" value={formStore.email} onChange={e => setFormStore({ ...formStore, email: e.target.value.toLowerCase() })} required />
+          <label>Address</label>
+          <textarea value={formStore.address} rows={3} onChange={e => setFormStore({ ...formStore, address: e.target.value })} />
+          <label>Store Owner</label>
+          <select value={formStore.owner_id} onChange={e => setFormStore({ ...formStore, owner_id: e.target.value })}>
+            <option value="">No Owner</option>
+            {owners.map(o => <option key={o.id} value={o.id}>{o.name} ({o.email})</option>)}
+          </select>
+          <button disabled={storeFormLoading}>{storeFormLoading ? 'Adding store...' : 'Add Store'}</button>
+        </form>
+      );
+    }
+
+    // Generic Table component with sorting UI
+    function Table({ columns, data, sort, onSortChange }) {
+      // Display human-friendly labels for columns
+      const columnLabels = {
+        name: 'Name',
+        email: 'Email',
+        address: 'Address',
+        role: 'Role',
+        rating: 'Rating'
+      };
+
+      const getSortArrow = (field) => {
+        if (sort.sortBy !== field) return '';
+        return sort.sortDir === 'ASC' ? '▲' : '▼';
+      };
+
+      return (
+        <table>
+          <thead>
+            <tr>
+              {columns.map(col => (
+                <th key={col} onClick={() => onSortChange(col)}>
+                  {columnLabels[col] || col} <span className="sort-arrow">{getSortArrow(col)}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {!data.length && (
+              <tr><td colSpan={columns.length} style={{textAlign:'center'}}>No records found</td></tr>
+            )}
+            {data.map((row, i) => (
+              <tr key={i}>
+                {columns.map(col => (
+                  <td key={`${i}-${col}`}>
+                    {col === 'rating' ? parseFloat(row[col]).toFixed(2) : row[col]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    // --- Normal User Dashboard ---
+    function NormalUserDashboard() {
+      const [stores, setStores] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [search, setSearch] = useState({ name: '', address: '' });
+      const [sort, setSort] = useState({ sortBy: 's.name', sortDir: 'ASC' });
+      const [error, setError] = useState(null);
+
+      const [ratingEdits, setRatingEdits] = useState({}); // store_id => rating
+
+      useEffect(() => {
+        setLoading(true);
+        const params = new URLSearchParams({
+          name: search.name,
+          address: search.address,
+          sortBy: sort.sortBy.replace('s.', ''),
+          sortDir: sort.sortDir,
+        });
+        fetchWithAuth(`${API_BASE}/stores?${params.toString()}`)
+          .then(data => setStores(data))
+          .catch(() => setError('Failed to load stores'))
+          .finally(() => setLoading(false));
+      }, [search, sort]);
+
+      function fetchWithAuth(url, options = {}) {
+        const headers = { 'Authorization': 'Bearer ' + AuthService.getToken(), 'Content-Type': 'application/json' };
+        return fetch(url, { ...options, headers })
+          .then(async res => {
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.message || 'Fetch error');
+            }
+            return res.json();
+          });
+      }
+
+      const submitRating = async (store_id, rating) => {
+        setError(null);
+        if (!(rating >= 1 && rating <= 5)) {
+          setError('Rating must be between 1 and 5');
+          return;
+        }
+        try {
+          await fetchWithAuth(`${API_BASE}/ratings`, {
+            method: 'POST',
+            body: JSON.stringify({ store_id, rating })
+          });
+          setRatingEdits(prev => ({ ...prev, [store_id]: rating }));
+          // Refresh store list to update user's submitted ratings and overall ratings
+          const params = new URLSearchParams({
+            name: search.name,
+            address: search.address,
+            sortBy: sort.sortBy.replace('s.', ''),
+            sortDir: sort.sortDir,
+          });
+          setLoading(true);
+          fetchWithAuth(`${API_BASE}/stores?${params.toString()}`)
+            .then(data => setStores(data))
+            .catch(() => setError('Failed to load stores'))
+            .finally(() => setLoading(false));
+        } catch (ex) {
+          setError(ex.message);
+        }
+      };
+
+      const handleSortChange = (field) => {
+        if (sort.sortBy === field) {
+          setSort({ sortBy: field, sortDir: sort.sortDir === 'ASC' ? 'DESC' : 'ASC' });
+        } else {
+          setSort({ sortBy: field, sortDir: 'ASC' });
+        }
+      };
+
+      return (
+        <div>
+          <h2>Welcome, Normal User</h2>
+
+          <div className="search-filter-container" style={{marginBottom: '20px'}}>
+            <input placeholder="Search by store name" value={search.name} onChange={e => setSearch({...search, name: e.target.value})} />
+            <input placeholder="Search by address" value={search.address} onChange={e => setSearch({...search, address: e.target.value})} />
+          </div>
+
+          {error && <div className="error">{error}</div>}
+
+          {loading ? <p>Loading stores...</p> : (
+            <table>
+              <thead>
+                <tr>
+                  <th onClick={() => handleSortChange('s.name')}>Store Name {sort.sortBy === 's.name' ? (sort.sortDir === 'ASC' ? '▲' : '▼') : ''}</th>
+                  <th onClick={() => handleSortChange('s.address')}>Address {sort.sortBy === 's.address' ? (sort.sortDir === 'ASC' ? '▲' : '▼') : ''}</th>
+                  <th>Overall Rating</th>
+                  <th>Your Rating</th>
+                  <th>Submit / Modify Rating</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stores.length === 0 && <tr><td colSpan="5" style={{textAlign:'center'}}>No stores found</td></tr>}
+                {stores.map(store => (
+                  <tr key={store.id}>
+                    <td>{store.name}</td>
+                    <td>{store.address}</td>
+                    <td>{store.overall_rating}</td>
+                    <td>{store.user_rating ?? '-'}</td>
+                    <td>
+                      <RatingStars currentRating={ratingEdits[store.id] ?? store.user_rating ?? 0} maxStars={5} onRate={(rating) => submitRating(store.id, rating)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <UpdatePasswordForm />
+        </div>
+      );
+    }
+
+    // Simple star rating component
+    function RatingStars({ currentRating, maxStars = 5, onRate, readonly = false }) {
+      const [hover, setHover] = useState(0);
+      const stars = [];
+      for (let i = 1; i <= maxStars; i++) {
+        stars.push(
+          <span
+            key={i}
+            style={{ cursor: readonly ? 'default' : 'pointer', color: (hover >= i || currentRating >= i) ? '#f39c12' : '#ccc', fontSize: '20px' }}
+            onMouseEnter={() => !readonly && setHover(i)}
+            onMouseLeave={() => !readonly && setHover(0)}
+            onClick={() => !readonly && onRate(i)}
+            title={`${i} star${i > 1 ? 's' : ''}`}
+          >
+            ★
+          </span>
+        );
+      }
+      return <div className={readonly ? 'rating-stars readonly' : 'rating-stars'}>{stars}</div>;
+    }
+
+    // --- Store Owner Dashboard ---
+    function StoreOwnerDashboard() {
+      const [data, setData] = useState({ stores: {}, average_rating: "0.00" });
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+
+      useEffect(() => {
+        setLoading(true);
+        fetchWithAuth(`${API_BASE}/stores/owner/dashboard`)
+          .then(res => setData(res))
+          .catch(() => setError('Failed to load store owner dashboard'))
+          .finally(() => setLoading(false));
+      }, []);
+
+      function fetchWithAuth(url) {
+        const headers = { 'Authorization': 'Bearer ' + AuthService.getToken(), 'Content-Type': 'application/json' };
+        return fetch(url, { headers })
+          .then(async res => {
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.message || 'Fetch error');
+            }
+            return res.json();
+          });
+      }
+
+      return (
+        <div>
+          <h2>Store Owner Dashboard</h2>
+          {error && <div className="error">{error}</div>}
+          {loading ? <p>Loading data...</p> : (
+            <>
+              <h3>Average Rating of Your Store(s): {parseFloat(data.average_rating).toFixed(2)}</h3>
+              {Object.keys(data.stores).length === 0 && <p>You have no stores or no ratings yet.</p>}
+              {Object.entries(data.stores).map(([storeId, storeData]) => (
+                <div key={storeId} className="section">
+                  <h4>{storeData.store_name}</h4>
+                  {storeData.ratings.length === 0 ? (
+                    <p>No users have submitted ratings for this store.</p>
+                  ) : (
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>User Name</th>
+                          <th>Email</th>
+                          <th>Rating</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {storeData.ratings.map(r => (
+                          <tr key={r.user_id}>
+                            <td>{r.user_name}</td>
+                            <td>{r.user_email}</td>
+                            <td>{r.rating}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+          <UpdatePasswordForm />
+        </div>
+      );
+    }
+
+    // Update Password Form is usable by all logged-in roles
+    function UpdatePasswordForm() {
+      const [oldPassword, setOldPassword] = useState('');
+      const [newPassword, setNewPassword] = useState('');
+      const [confirmNew, setConfirmNew] = useState('');
+      const [error, setError] = useState(null);
+      const [success, setSuccess] = useState(null);
+      const [loading, setLoading] = useState(false);
+
+      const pwdRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,16}$/;
+
+      const submit = async (e) => {
+        e.preventDefault();
+        setError(null);
+        setSuccess(null);
+        if (newPassword !== confirmNew) {
+          setError('New passwords do not match');
+          return;
+        }
+        if (!pwdRegex.test(newPassword)) {
+          setError('New password must be 8-16 chars, include 1 uppercase letter and 1 special char.');
+          return;
+        }
+        setLoading(true);
+        try {
+          const res = await fetch(`${API_BASE}/user/password`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': 'Bearer ' + AuthService.getToken(),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ oldPassword, newPassword })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setError(data.message || 'Password update failed');
+          } else {
+            setSuccess('Password updated successfully.');
+            setOldPassword('');
+            setNewPassword('');
+            setConfirmNew('');
+          }
+        } catch {
+          setError('Network error');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <form onSubmit={submit} style={{ marginTop: 40 }}>
+          <h3>Update Password</h3>
+          {error && <div className="error">{error}</div>}
+          {success && <div className="success">{success}</div>}
+          <label>Old Password</label>
+          <input type="password" value={oldPassword} onChange={e => setOldPassword(e.target.value)} required />
+          <label>New Password</label>
+          <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
+          <label>Confirm New Password</label>
+          <input type="password" value={confirmNew} onChange={e => setConfirmNew(e.target.value)} required />
+          <button disabled={loading}>{loading ? 'Updating...' : 'Update Password'}</button>
+        </form>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+
+</html>
